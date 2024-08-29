@@ -4,6 +4,7 @@ class Environment:
         self.temperature = temperature
         self.humidity = humidity
     def get_temperature(self):
+        print(f"Environment: current temperature: {self.temperature}")
         return self.temperature
 
     def set_temperature(self, temperature):
@@ -18,7 +19,8 @@ class Environment:
 
 
 class Conditioner:
-    """ decreaes temperature by 1 degree if receives operate command from remote """
+    """ decreases temperature by 1 degree if receives operate command from remote """
+    """ #TODO: 1. make Validator (Thermostat) as part of the Conditioner """
     def __init__(self, environment):
         self.environment = environment
     def operate(self):
@@ -31,33 +33,50 @@ class Validator:
         self.environment = environment
 
     def validate(self, temperature, humidity):
-        if temperature <  self.environment.get_temperature():
-            return True
-        else:
-            return False
-
+        return temperature <  self.environment.get_temperature()
+        
 
 class Remote:
-    def __init__(self, conditioner, validator, user_input):
+    """ #TODO: 2. make the Remote as proxy of the Conditioner """
+    def __init__(self, conditioner, validator):
         self.conditioner = conditioner
         self.validator = validator
+        default_settings = (26, 35)
+        self.user_input = default_settings
+
+    def set_user_input(self, user_input):
         self.user_input = user_input
+    
+    def operate_conditioner(self):
+        temp, hum = self.user_input
 
-
-    def operate_conditioner(self, user_input):
-        temp, hum = user_input
-
+        """ TODO: 3. Just for an excercise (in our simple version) Remote can check the Validator
+            and also operate the Conditioner, but...
+            probably it is more correct/realistic to create a Controller class which receives commands from the Remote, 
+            sets the Validator and activates the Conditioner """
         while self.validator.validate(temp, hum):
             print("Validator returned True. Operating the conditioner...")
             self.conditioner.operate()
             sleep(2)
 
-        print("Validator returned False. No need to operate.")
+        print("Remote: Validator returned False. No need to operate.")
+
+
+""" the user """
+def client_code(remote) -> None:
+    # client (User)
+    user_input = (25, 50)
+    remote.set_user_input(user_input)
+    remote.operate_conditioner()
+
 
 if __name__ == "__main__":
+    """ Process starter (Main) """
     environment = Environment(35, 50)
     conditioner = Conditioner(environment)
     validator = Validator(environment)
-    remote = Remote(conditioner, validator, (25, 50))
-    remote.operate_conditioner((25, 50))
+    remote = Remote(conditioner, validator)
+    client_code(remote)
+    
+    # result:
     print(environment.get_temperature())
