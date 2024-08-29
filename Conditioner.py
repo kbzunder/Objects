@@ -48,7 +48,6 @@ class Remote:
         temp, hum = user_input
 
         while self.validator.validate(temp, hum):
-            print(temp, hum)
             print("Validator returned True. Operating the conditioner...")
             self.conditioner.operate()
             sleep(2)
