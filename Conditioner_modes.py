@@ -1,4 +1,5 @@
 from time import sleep
+from abc import ABC, abstractmethod
 class Environment:
     def __init__(self, temperature, humidity):
         self.temperature = temperature
@@ -17,31 +18,67 @@ class Environment:
     def get_humidity(self):
         return self.humidity
 
+class Mode(ABC):
+    def __init__(self, environment):
+        self.environment = environment
+    @abstractmethod
+    def validate(self, temperature, humidity):
+        pass
+
+    @abstractmethod
+    def operate(self):
+        pass
+
+class Heat(Mode):
+    def validate(self, temperature, humidity):
+        return temperature > self.environment.get_temperature()
+
+    def operate(self):
+        return self.environment.set_temperature(self.environment.get_temperature() + 1)
+
+class Cool(Mode):
+    def validate(self, temperature, humidity):
+        return temperature < self.environment.get_temperature()
+
+    def operate(self):
+        return self.environment.set_temperature(self.environment.get_temperature() - 1)
+
+class Humidify(Mode):
+    def validate(self, temperature, humidity):
+        return humidity < self.environment.get_humidity()
+
+    def operate(self):
+        return self.environment.set_humidity(self.environment.get_humidity() - 1)
+
+class ModeFactory:
+    def __init__(self, environment):
+        self.environment = environment
+    @staticmethod
+    def get_mode(mode_name):
+        modes = {
+            "heat": Heat(environment),
+            "cool": Cool(environment),
+            "humidify": Humidify(environment)
+        }
+        return modes.get(mode_name)
+
 
 class Validator:
     def __init__(self, environment):
         self.environment = environment
+        self.mode = None
 
     def validate(self, temperature, humidity, mode):
-        if mode == "heat":
-            return temperature > self.environment.get_temperature()
-        elif mode == "cool":
-            return temperature < self.environment.get_temperature()
-        elif mode == "humidify":
-            return humidity < self.environment.get_humidity()
+        self.mode = ModeFactory.get_mode(mode)
+        return self.mode.validate(temperature, humidity)
 
 class Conditioner:
     def __init__(self, environment):
         self.environment = environment
 
     def operate(self, mode):
-        if mode == "heat":
-            return self.environment.set_temperature(self.environment.get_temperature() + 1)
-        elif mode == "cool":
-            return self.environment.set_temperature(self.environment.get_temperature() - 1)
-        elif mode == "humidify":
-            return self.environment.set_humidity(self.environment.get_humidity() - 1)
-
+        mode = ModeFactory.get_mode(mode)
+        mode.operate()
 class User:
     def __init__(self,remote):
        self.remote = remote
@@ -85,11 +122,11 @@ class Remote:
 
 
 if __name__ == "__main__":
-    environment = Environment(25, 35)
+    environment = Environment(33, 35)
     remote = Remote()
     user = User(remote)
-    user.set_user_input((44, 22))
-    user.set_user_mode("humidify")
+    user.set_user_input((22, 22))
+    user.set_user_mode("cool")
     validator = Validator(environment)
     conditioner = Conditioner(environment)
     controller = Controller(remote, validator, conditioner)
