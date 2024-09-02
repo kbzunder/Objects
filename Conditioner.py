@@ -17,7 +17,6 @@ class Environment:
         return self.humidity
 
 
-
 class Conditioner:
     """ decreases temperature by 1 degree if receives operate command from remote """
     """ #TODO: 1. make Validator (Thermostat) as part of the Conditioner """
