@@ -3,6 +3,7 @@ import io
 from google.cloud import storage
 from abc import ABC, abstractmethod
 import PyPDF2
+# kuku
 import docx2txt  # Import the library for extracting text from docx files
 from pathlib import Path
 
