@@ -1,11 +1,13 @@
-# v8
 import io
+import os
 from google.cloud import storage
+from google.cloud import bigquery
 from abc import ABC, abstractmethod
 import PyPDF2
-# kuku
 import docx2txt  # Import the library for extracting text from docx files
 from pathlib import Path
+import re
+from datetime import datetime
 
 # Download file from Google Cloud Bucket
 class DownloadFileFromBucket:
@@ -29,7 +31,7 @@ class DownloadFileFromBucket:
                 blob.download_to_file(file)
                 file.seek(0)  # Reset the stream position to the beginning
                 print('file from bucket uploaded')
-            except Excetion as e:
+            except Exception as e:
                 print(e)
         else:
             # If not downloading from cloud storage, just read from the local path
@@ -84,30 +86,43 @@ class DocsSpecs:
     def set_writer(self,writer):
         self.writer = writer
     
-    def get_bq_parameters(self):
-        return self.bucket_factory.get_bq_parameters()
+    def get_dataset_id(self):
+        return self.bucket_factory.get_dataset_id()
+    
+    def get_table_id(self):
+        return self.bucket_factory.get_table_id()
+    
+    def get_project_id(self):
+        return self.bucket_factory.get_project_id()
     
 
 class BucketFactory:
     def __init__(self):
         self.types = {
             'pdf': {
-                'bucket_ocr': 'ngcs-chat-poc-temp-bucket',
-                'bucket_txt': 'ngcs-chat-poc-txt-bucket'
+                'bucket_ocr': os.environ.get("OCR_INPUT_BUCKET", 'ngcs-chat-poc-temp-bucket'),
+                'bucket_txt': os.environ.get("TXT_BUCKET",'ngcs-chat-poc-txt-bucket')
             },
-            'docx': 'ngcs-chat-poc-txt-bucket',
+            'docx': os.environ.get("TXT_BUCKET",'ngcs-chat-poc-txt-bucket'),
             'bq': {
-                'project_id': 'ai-services-401511',
-                'dataset_id': 'chat',
-                'table_id': 'dt_Document'
+                'project_id': os.environ.get("PROJECT_ID",'gcp-dev-netcourt-mewest1'),
+                'dataset_id': os.environ.get("DATASET_ID",'ngcs_chat_poc_dataset'),
+                'table_id': os.environ.get("TABLE_ID",'dt_Document')
             }
         }
 
     def get_buckets(self, file_type):
         return self.types.get(file_type, None)
     
-    def get_bq_parameters(self):
-        return self.types.get('bq')
+    def get_project_id(self):
+        return self.types.get('bq')['project_id']
+    
+    def get_dataset_id(self):
+        return self.types.get('bq')['dataset_id']
+    
+    def get_table_id(self):
+        return self.types.get('bq')['dataset_id']
+    
     
     
 class DocumentCassifier:
@@ -262,9 +277,8 @@ from google.cloud import bigquery
 class BigqueryUpdater:
     
     def __init__(self,specs):
-        self.specs = specs
-        self.parameters = self.specs.get_bq_parameters()
-    
+        self.specs = specs  
+        
     def update_bigquery_row(self):
         """
         Updates specific columns in a row in a BigQuery table.
@@ -275,7 +289,7 @@ class BigqueryUpdater:
         :param column_updates: Dictionary of column names and their new values
         :param condition: Condition for the row(s) to be updated (e.g., "id = 123")
         """
-        client = bigquery.Client(project=self.parameters['project_id'])
+        client = bigquery.Client(project=self.specs.get_bq_parameters()['project_id'])
                 
         column_updates = {'Path' : self.specs.dest_file,
                               'POCCreateDate' : datetime.now().strftime("%Y-%m-%d")}
@@ -286,7 +300,7 @@ class BigqueryUpdater:
         
         # Ensure that the condition is formatted correctly as well
         query = f"""
-        UPDATE `{self.parameters['project_id']}.{self.parameters['dataset_id']}.{self.parameters['table_id']}`
+        UPDATE `{self.specs.get_project_id()}.{self.specs.get_dataset_id()}.{self.specs.get_table_id()}`
         SET {set_clauses}
         WHERE {condition}
         """
